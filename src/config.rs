@@ -7,7 +7,11 @@ pub struct Config {
     pub api_news_max_calls_per_day: i32,
     pub api_news_country_code: &'static str,
     pub api_news_max_retry_count: u32,
-    api_news_secret: String, // private field
+    api_news_secret: String,
+
+    pub mongodb_connection_string: String,
+    pub mongodb_database_name: String,
+    pub mongodb_collection_name: String,
 }
 
 impl Config {
@@ -19,6 +23,13 @@ impl Config {
             api_news_country_code: "us", // seems that newsapi only returns results for US
             api_news_max_retry_count: 3,
             api_news_secret: env::var("API_NEWS_SECRET")?,
+
+            mongodb_connection_string: env::var("MONGODB_CONNECTION_STRING")
+                .unwrap_or_else(|_| "mongodb://localhost:27017".to_string()),
+            mongodb_database_name: env::var("MONGODB_DATABASE_NAME")
+                .unwrap_or_else(|_| "news".to_string()),
+            mongodb_collection_name: env::var("MONGODB_COLLECTION_NAME")
+                .unwrap_or_else(|_| "articles".to_string()),
         })
     }
 

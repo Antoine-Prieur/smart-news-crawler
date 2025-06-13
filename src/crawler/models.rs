@@ -8,22 +8,22 @@ pub struct NewsResponse {
     pub articles: Vec<Article>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Source {
-    id: Option<String>,
-    name: String,
+    pub id: Option<String>,
+    pub name: String,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Article {
-    source: Source,
-    author: Option<String>,
-    title: Option<String>,
-    description: Option<String>,
-    url: Option<String>,
+    pub source: Source,
+    pub author: Option<String>,
+    pub title: Option<String>,
+    pub description: Option<String>,
+    pub url: Option<String>,
     #[serde(rename = "urlToImage")]
-    url_to_image: Option<String>,
+    pub url_to_image: Option<String>,
     #[serde(rename = "publishedAt")]
-    published_at: Option<String>,
-    content: Option<String>,
+    pub published_at: Option<String>,
+    pub content: Option<String>,
 }

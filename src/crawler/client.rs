@@ -1,11 +1,11 @@
 use crate::config::Config;
 use crate::crawler::models::Article;
 use crate::crawler::models::NewsResponse;
+use crate::database::ArticleDocument;
+use crate::database::ArticleRepository;
 
 use log::error;
 use log::info;
-use std::fs::File;
-use std::io::Write;
 use tokio::time::{Duration, sleep};
 use url::Url;
 
@@ -81,29 +81,27 @@ impl NewsCrawlerClient {
         Err("Max retries exceeded or API limit reached".into())
     }
 
-    fn save_articles(&self, articles: &[Article]) -> Result<(), Box<dyn std::error::Error>> {
+    async fn save_articles_to_db(
+        &self,
+        articles: &[Article],
+        repository: &ArticleRepository,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         if articles.is_empty() {
             info!("No articles to save");
             return Ok(());
         }
 
-        let json_data = serde_json::to_string_pretty(articles)?;
-        let filename = format!(
-            "articles_{}.json",
-            chrono::Utc::now().format("%Y%m%d_%H%M%S")
-        );
+        let article_documents = ArticleDocument::from_articles(articles.to_vec());
 
-        let mut file = File::create(&filename)?;
-        file.write_all(json_data.as_bytes())?;
+        repository.insert_articles(&article_documents).await?;
 
-        info!("Saved {} articles to {}", articles.len(), filename);
         Ok(())
     }
-
     pub async fn crawl_all_articles(
         &mut self,
         base_url: &str,
         endpoint: &str,
+        article_repository: &ArticleRepository,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let base_url: Url = Url::parse(base_url)?;
         let top_headlines_url: Url = base_url.join(endpoint)?;
@@ -147,15 +145,23 @@ impl NewsCrawlerClient {
             }
         }
 
-        self.save_articles(&all_articles)?;
+        self.save_articles_to_db(&all_articles, article_repository)
+            .await?;
 
         Ok(())
     }
 }
 
-pub async fn crawl(config: &Config) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn crawl(
+    config: &Config,
+    article_repository: ArticleRepository,
+) -> Result<(), Box<dyn std::error::Error>> {
     let mut client = NewsCrawlerClient::new(config.clone())?;
     client
-        .crawl_all_articles(config.api_news_base_url, config.api_news_endpoint)
+        .crawl_all_articles(
+            config.api_news_base_url,
+            config.api_news_endpoint,
+            &article_repository,
+        )
         .await
 }
