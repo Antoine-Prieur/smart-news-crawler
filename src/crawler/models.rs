@@ -9,6 +9,12 @@ pub struct NewsResponse {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+pub struct Source {
+    id: Option<String>,
+    name: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Article {
     source: Source,
     author: Option<String>,
@@ -20,10 +26,4 @@ pub struct Article {
     #[serde(rename = "publishedAt")]
     published_at: Option<String>,
     content: Option<String>,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct Source {
-    id: Option<String>,
-    name: String,
 }
