@@ -24,8 +24,8 @@ impl Config {
             api_news_max_retry_count: 3,
             api_news_secret: env::var("API_NEWS_SECRET")?,
 
-            mongodb_connection_string: env::var("MONGODB_CONNECTION_STRING")
-                .unwrap_or_else(|_| "mongodb://localhost:27017".to_string()),
+            mongodb_connection_string: env::var("MONGO_URL")
+                .unwrap_or_else(|_| "mongodb://admin:password123@localhost:27017".to_string()),
             mongodb_database_name: env::var("MONGODB_DATABASE_NAME")
                 .unwrap_or_else(|_| "news".to_string()),
             mongodb_collection_name: env::var("MONGODB_COLLECTION_NAME")
