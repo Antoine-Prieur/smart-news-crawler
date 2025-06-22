@@ -1,3 +1,5 @@
+use crate::serializers::{deserialize_datetime, serialize_mongo_date};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize)]
@@ -23,7 +25,11 @@ pub struct Article {
     pub url: Option<String>,
     #[serde(rename = "urlToImage")]
     pub url_to_image: Option<String>,
-    #[serde(rename = "publishedAt")]
-    pub published_at: Option<String>,
+    #[serde(
+        rename = "publishedAt",
+        deserialize_with = "deserialize_datetime",
+        serialize_with = "serialize_mongo_date"
+    )]
+    pub published_at: DateTime<Utc>,
     pub content: Option<String>,
 }

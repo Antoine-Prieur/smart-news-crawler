@@ -1,6 +1,7 @@
 mod config;
 mod crawler;
 mod database;
+mod serializers;
 
 use crate::config::Config;
 use crate::crawler::crawl;

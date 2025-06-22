@@ -9,7 +9,6 @@ impl From<Article> for ArticleDocument {
         let now = Utc::now();
 
         Self {
-            id: None,
             source: SourceDocument {
                 id: article.source.id,
                 name: article.source.name,

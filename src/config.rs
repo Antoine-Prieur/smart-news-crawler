@@ -23,7 +23,6 @@ impl Config {
             api_news_country_code: "us", // seems that newsapi only returns results for US
             api_news_max_retry_count: 3,
             api_news_secret: env::var("API_NEWS_SECRET")?,
-
             mongodb_connection_string: env::var("MONGO_URL")
                 .unwrap_or_else(|_| "mongodb://admin:password123@localhost:27017".to_string()),
             mongodb_database_name: env::var("MONGODB_DATABASE_NAME")
