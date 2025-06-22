@@ -2,7 +2,8 @@ use crate::database::DatabaseRepository;
 use crate::database::models::ArticleDocument;
 use async_trait::async_trait;
 use log::{error, info};
-use mongodb::{Client, Collection, Database};
+use mongodb::options::IndexOptions;
+use mongodb::{Client, Collection, Database, IndexModel};
 
 pub struct ArticleRepository {
     collection: Collection<ArticleDocument>,
@@ -25,7 +26,43 @@ impl ArticleRepository {
             database_name, collection_name
         );
 
-        Ok(Self { collection })
+        let repository = Self { collection };
+
+        repository.create_url_index().await?;
+
+        Ok(repository)
+    }
+
+    async fn create_url_index(&self) -> Result<(), mongodb::error::Error> {
+        let index_doc = mongodb::bson::doc! {
+            "url": 1
+        };
+
+        let index_options = IndexOptions::builder().unique(true).sparse(true).build();
+
+        let index_model = IndexModel::builder()
+            .keys(index_doc)
+            .options(index_options)
+            .build();
+
+        match self.collection.create_index(index_model).await {
+            Ok(result) => {
+                info!(
+                    "Successfully created unique index on 'url' field: {:?}",
+                    result
+                );
+                Ok(())
+            }
+            Err(e) => {
+                if e.to_string().contains("already exists") {
+                    info!("Unique index on 'url' field already exists, skipping creation");
+                    Ok(())
+                } else {
+                    error!("Failed to create unique index on 'url' field: {}", e);
+                    Err(e)
+                }
+            }
+        }
     }
 
     pub async fn insert_articles(
@@ -62,8 +99,16 @@ impl DatabaseRepository<ArticleDocument> for ArticleRepository {
                 Ok(())
             }
             Err(e) => {
-                error!("Failed to insert article documents: {}", e);
-                Err(e)
+                if e.to_string().contains("duplicate key") || e.to_string().contains("E11000") {
+                    info!(
+                        "Some articles were skipped due to duplicate URLs (this is expected behavior)"
+                    );
+
+                    Ok(())
+                } else {
+                    error!("Failed to insert article documents: {}", e);
+                    Err(e)
+                }
             }
         }
     }
