@@ -13,7 +13,7 @@ services:
       - mongodb_data:/data/db
       - mongodb_config:/data/configdb
     networks:
-      - mongodb_network
+      - app_network
 
   mongo-express:
     image: mongo-express:1.0.0
@@ -31,12 +31,38 @@ services:
     ports:
       - "8081:8081"
     networks:
-      - mongodb_network
+      - app_network
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - app_network
+    command: redis-server --appendonly yes
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: redis-commander
+    restart: unless-stopped
+    depends_on:
+      - redis
+    environment:
+      REDIS_HOSTS: local:redis:6379
+    ports:
+      - "8082:8081"
+    networks:
+      - app_network
 
 volumes:
   mongodb_data:
   mongodb_config:
+  redis_data:
 
 networks:
-  mongodb_network:
+  app_network:
     driver: bridge

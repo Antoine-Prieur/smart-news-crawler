@@ -3,6 +3,8 @@ use crate::crawler::models::Article;
 use crate::crawler::models::NewsResponse;
 use crate::database::ArticleDocument;
 use crate::database::ArticleRepository;
+use crate::redis::client::QueueName;
+use crate::redis::client::RedisQueueClient;
 
 use log::error;
 use log::info;
@@ -81,27 +83,36 @@ impl NewsCrawlerClient {
         Err("Max retries exceeded or API limit reached".into())
     }
 
-    async fn save_articles_to_db(
+    async fn save_and_enqueue_articles(
         &self,
         articles: &[Article],
         repository: &ArticleRepository,
+        redis_client: &RedisQueueClient,
     ) -> Result<(), Box<dyn std::error::Error>> {
         if articles.is_empty() {
-            info!("No articles to save");
+            info!("No articles to process");
             return Ok(());
         }
-
         let article_documents = ArticleDocument::from_articles(articles.to_vec());
 
         repository.insert_articles(&article_documents).await?;
+        info!("Saved {} articles to database", articles.len());
+
+        for article_doc in &article_documents {
+            let article_json = serde_json::to_value(article_doc)?;
+            redis_client.enqueue(QueueName::Articles, article_json)?;
+        }
+        info!("Enqueued {} articles to Redis", articles.len());
 
         Ok(())
     }
+
     pub async fn crawl_all_articles(
         &mut self,
         base_url: &str,
         endpoint: &str,
         article_repository: &ArticleRepository,
+        redis_client: &RedisQueueClient,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let base_url: Url = Url::parse(base_url)?;
         let top_headlines_url: Url = base_url.join(endpoint)?;
@@ -145,7 +156,7 @@ impl NewsCrawlerClient {
             }
         }
 
-        self.save_articles_to_db(&all_articles, article_repository)
+        self.save_and_enqueue_articles(&all_articles, article_repository, redis_client)
             .await?;
 
         Ok(())
@@ -155,6 +166,7 @@ impl NewsCrawlerClient {
 pub async fn crawl(
     config: &Config,
     article_repository: ArticleRepository,
+    redis_client: RedisQueueClient,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut client = NewsCrawlerClient::new(config.clone())?;
     client
@@ -162,6 +174,7 @@ pub async fn crawl(
             config.api_news_base_url,
             config.api_news_endpoint,
             &article_repository,
+            &redis_client,
         )
         .await
 }

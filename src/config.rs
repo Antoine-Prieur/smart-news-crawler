@@ -12,6 +12,8 @@ pub struct Config {
     pub mongodb_connection_string: String,
     pub mongodb_database_name: String,
     pub mongodb_collection_name: String,
+
+    pub redis_url: String,
 }
 
 impl Config {
@@ -29,6 +31,9 @@ impl Config {
                 .unwrap_or_else(|_| "news".to_string()),
             mongodb_collection_name: env::var("MONGODB_COLLECTION_NAME")
                 .unwrap_or_else(|_| "articles".to_string()),
+
+            redis_url: env::var("REDIS_URL")
+                .unwrap_or_else(|_| "redis://127.0.0.1:6379".to_string()),
         })
     }
 
