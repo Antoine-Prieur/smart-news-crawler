@@ -1,4 +1,5 @@
 use chrono::{DateTime, Utc};
+use mongodb::bson::oid::ObjectId;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -9,6 +10,9 @@ pub struct SourceDocument {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ArticleDocument {
+    #[serde(rename = "_id", skip_serializing_if = "Option::is_none")]
+    pub id: Option<ObjectId>,
+
     pub source: SourceDocument,
     pub author: Option<String>,
     pub title: Option<String>,

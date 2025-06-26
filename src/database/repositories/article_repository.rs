@@ -1,6 +1,4 @@
-use crate::database::DatabaseRepository;
 use crate::database::models::ArticleDocument;
-use async_trait::async_trait;
 use log::{error, info};
 use mongodb::options::IndexOptions;
 use mongodb::{Client, Collection, Database, IndexModel};
@@ -65,51 +63,80 @@ impl ArticleRepository {
         }
     }
 
-    pub async fn insert_articles(
+    pub async fn insert_article(
         &self,
-        articles: &[ArticleDocument],
-    ) -> Result<(), mongodb::error::Error> {
-        if articles.is_empty() {
-            info!("No articles to insert");
-            return Ok(());
-        }
+        article: &ArticleDocument,
+    ) -> Result<Option<ArticleDocument>, mongodb::error::Error> {
+        let mut article_with_id = article.clone();
 
-        self.insert_many(articles).await
-    }
-}
-
-#[async_trait]
-impl DatabaseRepository<ArticleDocument> for ArticleRepository {
-    type Error = mongodb::error::Error;
-
-    async fn insert_many(&self, documents: &[ArticleDocument]) -> Result<(), Self::Error> {
-        if documents.is_empty() {
-            info!("No documents to insert");
-            return Ok(());
-        }
-
-        let documents_vec = documents.to_vec();
-
-        match self.collection.insert_many(documents_vec).await {
+        match self.collection.insert_one(&article_with_id).await {
             Ok(result) => {
-                info!(
-                    "Successfully inserted {} article documents",
-                    result.inserted_ids.len()
-                );
-                Ok(())
+                if let mongodb::bson::Bson::ObjectId(oid) = result.inserted_id {
+                    article_with_id.id = Some(oid);
+                    info!("Successfully inserted article with ID: {}", oid);
+                    Ok(Some(article_with_id))
+                } else {
+                    error!("Unexpected ID type from MongoDB insert");
+                    Ok(None)
+                }
             }
             Err(e) => {
                 if e.to_string().contains("duplicate key") || e.to_string().contains("E11000") {
                     info!(
-                        "Some articles were skipped due to duplicate URLs (this is expected behavior)"
+                        "Article skipped due to duplicate URL (this is expected): {}",
+                        article.url.as_deref().unwrap_or("unknown URL")
                     );
-
-                    Ok(())
+                    Ok(None)
                 } else {
-                    error!("Failed to insert article documents: {}", e);
+                    error!("Failed to insert article: {}", e);
                     Err(e)
                 }
             }
         }
+    }
+
+    pub async fn insert_articles(
+        &self,
+        articles: &[ArticleDocument],
+    ) -> Result<Vec<ArticleDocument>, mongodb::error::Error> {
+        if articles.is_empty() {
+            info!("No articles to insert");
+            return Ok(Vec::new());
+        }
+
+        let mut successfully_inserted = Vec::new();
+        let mut duplicate_count = 0;
+        let mut error_count = 0;
+
+        info!("Processing {} articles for insertion...", articles.len());
+
+        for (index, article) in articles.iter().enumerate() {
+            match self.insert_article(article).await {
+                Ok(Some(inserted_article)) => {
+                    successfully_inserted.push(inserted_article);
+                }
+                Ok(_none) => {
+                    duplicate_count += 1;
+                }
+                Err(e) => {
+                    error!(
+                        "Failed to insert article {}/{}: {}",
+                        index + 1,
+                        articles.len(),
+                        e
+                    );
+                    error_count += 1;
+                }
+            }
+        }
+
+        info!(
+            "Insertion complete. Successfully inserted: {}, Duplicates skipped: {}, Errors: {}",
+            successfully_inserted.len(),
+            duplicate_count,
+            error_count
+        );
+
+        Ok(successfully_inserted)
     }
 }

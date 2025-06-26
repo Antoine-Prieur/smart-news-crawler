@@ -95,10 +95,10 @@ impl NewsCrawlerClient {
         }
         let article_documents = ArticleDocument::from_articles(articles.to_vec());
 
-        repository.insert_articles(&article_documents).await?;
+        let inserted_articles_document = repository.insert_articles(&article_documents).await?;
         info!("Saved {} articles to database", articles.len());
 
-        for article_doc in &article_documents {
+        for article_doc in &inserted_articles_document {
             let article_json = serde_json::to_value(article_doc)?;
             redis_client.enqueue(QueueName::Articles, article_json)?;
         }
