@@ -5,6 +5,9 @@ use crate::database::ArticleDocument;
 use crate::database::ArticleRepository;
 use crate::redis::client::QueueName;
 use crate::redis::client::RedisQueueClient;
+use chrono::DateTime;
+use chrono::Utc;
+use serde::{Deserialize, Serialize};
 
 use log::error;
 use log::info;
@@ -15,6 +18,23 @@ struct NewsCrawlerClient {
     client: reqwest::Client,
     call_count: i32,
     config: Config,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct BaseEvent {
+    event_type: String,
+    timestamp: DateTime<Utc>,
+    content: serde_json::Value,
+}
+
+impl BaseEvent {
+    fn new(event_type: &str, content: serde_json::Value) -> Self {
+        Self {
+            event_type: event_type.to_string(),
+            timestamp: Utc::now(),
+            content,
+        }
+    }
 }
 
 impl NewsCrawlerClient {
@@ -100,7 +120,12 @@ impl NewsCrawlerClient {
 
         for article_doc in &inserted_articles_document {
             let article_json = serde_json::to_value(article_doc)?;
-            redis_client.enqueue(QueueName::Articles, article_json)?;
+
+            let event = BaseEvent::new("articles_event", article_json);
+
+            let event_json = serde_json::to_value(&event)?;
+
+            redis_client.enqueue(QueueName::Articles, event_json)?;
         }
         info!("Enqueued {} articles to Redis", articles.len());
 

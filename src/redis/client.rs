@@ -11,7 +11,7 @@ pub enum QueueName {
 impl QueueName {
     pub fn as_str(&self) -> &'static str {
         match self {
-            QueueName::Articles => "articles_queue",
+            QueueName::Articles => "articles",
         }
     }
 }
